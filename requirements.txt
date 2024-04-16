@@ -1,0 +1,4 @@
+pygame==2.5.2
+numpy==1.26.4
+numba==0.59.1
+pytest==8.1.1

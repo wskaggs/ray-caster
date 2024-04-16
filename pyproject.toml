@@ -1,0 +1,17 @@
+[project]
+name = "ray-caster"
+version = "0.0.1"
+description = "A 2D ray caster with pitch controls, reflections, and shadows"
+maintainers = [
+    {name = "Will Skaggs", email = "skaggswi@msu.edu"},
+]
+#readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = ["tests"]
