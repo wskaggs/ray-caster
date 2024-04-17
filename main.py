@@ -58,11 +58,30 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
         if info.hit_side == HitSide.LEFT or info.hit_side == HitSide.TOP:
             wall_texture_x = wall_width - wall_texture_x - 1
 
+        # Calculate the shading of the wall based on its distance and if it faces a light source
+        wall_shade = np.minimum(0.3 + 0.7 * wall_draw_height / half_buffer_height, 1)
+
+        if camera.map.cells[int(info.hit_x - 0.001)][int(info.hit_y - 0.001)] != 0:
+            wall_shade *= 0.6
+
         # Draw the wall within the column
         for j in range(wall_draw_start, wall_draw_end):
-            # Determine the color of the pixel to draw
+            # Determine the vertical texture coord
             wall_texture_y = int(np.fmod(3 * (j - wall_start) / wall_draw_height, 1) * wall_height)
-            wall_color = camera.map.colors[info.map_x][info.map_y] * wall[wall_texture_x][wall_texture_y]
+
+            # Calculate the color of the pixel to draw
+            wall_color = wall_shade * camera.map.colors[info.map_x][info.map_y] * wall[wall_texture_x][wall_texture_y]
+
+            # Check if this wall is occluded by a neighboring wall
+            is_occluded = False
+
+            if info.hit_side == HitSide.RIGHT and camera.map.cells[info.map_x - 1][info.map_y - 1] != 0:
+                is_occluded = info.hit_y - info.map_y < 0.33 * (j - wall_start) / (wall_end - wall_start)
+            elif info.hit_side == HitSide.TOP and camera.map.cells[info.map_x - 1][info.map_y - 1] != 0:
+                is_occluded = info.hit_x - info.map_x < 0.33 * (j - wall_start) / (wall_end - wall_start)
+
+            if is_occluded:
+                wall_color *= 0.4
 
             # Draw this pixel and its reflection over the floor, if applicable
             buffer[i][j] = wall_color
@@ -82,10 +101,20 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
             floor_texture_x = int(np.fmod(3 * floor_x, 1) * floor_width)
             floor_texture_y = int(np.fmod(3 * floor_y, 1) * floor_height)
 
+            # Calculate the shading of the floor based on its distance and any occulsion of walls
+            floor_shade = min(0.2 + 0.8 / floor_distance, 1)
+
+            if camera.map.cells[int(floor_x - 0.33)][int(floor_y - 0.33)] != 0:
+                floor_shade *= 0.4
+            elif camera.map.cells[int(floor_x - 0.33)][int(floor_y)] and np.fmod(floor_y, 1) > np.fmod(floor_x, 1):
+                floor_shade *= 0.4
+            elif camera.map.cells[int(floor_x)][int(floor_y - 0.33)] and np.fmod(floor_x, 1) > np.fmod(floor_y, 1):
+                floor_shade *= 0.4
+
             # Determine the color of the pixel to draw and draw it
             reflective_color = buffer[i][buffer_height - j - 1]
             floor_color = floor[floor_texture_x][floor_texture_y]
-            buffer[i][buffer_height - j - 1] = 0.7 * floor_color + 0.3 * floor_color * reflective_color
+            buffer[i][buffer_height - j - 1] = floor_shade * (0.7 * floor_color + 0.3 * floor_color * reflective_color)
 
     return buffer
 
