@@ -13,6 +13,7 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
     :param camera: the camera we are viewing through
     :param sky: the normalized pixels of the sky texture
     :param wall: the normalized pixels of the wall texture
+    :param floor: the normalized pixels of the floor texture
     :return: the new screen buffer
     """
     # Clear the buffer with black
@@ -42,7 +43,7 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
         # Perform the ray cast
         info = camera.map.ray_cast(camera.x, camera.y, yaw_prime)
 
-        # Determine the height of the corresponding coordinates on screen
+        # Determine the height of the wall and the corresponding coordinates on screen
         wall_draw_height = int(buffer_height / info.distance)
         wall_start = half_buffer_height - wall_draw_height // 2 + y_shear
         wall_end = half_buffer_height + wall_draw_height // 2 + y_shear
@@ -51,7 +52,7 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
         wall_draw_start = max(0, wall_start)
         wall_draw_end = min(wall_end, buffer_height - 1)
 
-        # Calculate the horizontal texture coord. This may need to be mirrored depending on which side is hit
+        # Calculate the horizontal wall texture coord. This may need to be mirrored depending on which side is hit
         wall_hit_offset = np.fmod(info.hit_x if info.is_horizontal_hit() else info.hit_y, 1)
         wall_texture_x = int(np.fmod(3 * wall_hit_offset, 1) * wall_width)
 
@@ -59,15 +60,16 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
             wall_texture_x = wall_width - wall_texture_x - 1
 
         # Calculate the shading of the wall based on its distance and if it faces a light source
-        wall_shade = np.minimum(0.3 + 0.7 * wall_draw_height / half_buffer_height, 1)
+        wall_shade = 1 - info.distance / camera.map.size
 
         if camera.map.cells[int(info.hit_x - 0.001)][int(info.hit_y - 0.001)] != 0:
             wall_shade *= 0.6
 
         # Draw the wall within the column
-        for j in range(wall_draw_start, wall_draw_end):
+        for j in range(wall_start, wall_end):
             # Determine the vertical texture coord
-            wall_texture_y = int(np.fmod(3 * (j - wall_start) / wall_draw_height, 1) * wall_height)
+            percent_done = (j - wall_start) / wall_draw_height
+            wall_texture_y = int(np.fmod(3 * percent_done, 1) * wall_height)
 
             # Calculate the color of the pixel to draw
             wall_color = wall_shade * camera.map.colors[info.map_x][info.map_y] * wall[wall_texture_x][wall_texture_y]
@@ -76,16 +78,19 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
             is_occluded = False
 
             if info.hit_side == HitSide.RIGHT and camera.map.cells[info.map_x - 1][info.map_y - 1] != 0:
-                is_occluded = info.hit_y - info.map_y < 0.33 * (j - wall_start) / (wall_end - wall_start)
+                is_occluded = info.hit_y - info.map_y < 0.33 * percent_done
             elif info.hit_side == HitSide.TOP and camera.map.cells[info.map_x - 1][info.map_y - 1] != 0:
-                is_occluded = info.hit_x - info.map_x < 0.33 * (j - wall_start) / (wall_end - wall_start)
+                is_occluded = info.hit_x - info.map_x < 0.33 * percent_done
 
             if is_occluded:
                 wall_color *= 0.4
 
-            # Draw this pixel and its reflection over the floor, if applicable
-            buffer[i][j] = wall_color
-            reflected_j = 2 * wall_draw_end - j - 1
+            # Prevent drawing this pixel if it is off-screen
+            if wall_draw_start <= j <= wall_draw_end:
+                buffer[i][j] = wall_color
+
+            # Even if this pixel is off-screen, its reflection may not be
+            reflected_j = wall_end + wall_draw_height - (j - wall_start)
 
             if reflected_j < buffer_height:
                 buffer[i][reflected_j] = wall_color
@@ -101,7 +106,7 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
             floor_texture_x = int(np.fmod(3 * floor_x, 1) * floor_width)
             floor_texture_y = int(np.fmod(3 * floor_y, 1) * floor_height)
 
-            # Calculate the shading of the floor based on its distance and any occulsion of walls
+            # Calculate the shading of the floor based on its distance and any occlusion of walls
             floor_shade = min(0.2 + 0.8 / floor_distance, 1)
 
             if camera.map.cells[int(floor_x - 0.33)][int(floor_y - 0.33)] != 0:
@@ -126,6 +131,7 @@ def main() -> None:
     # Create the window and clock
     window_width, window_height = 1600, 900
     window = pg.display.set_mode((window_width, window_height))
+    pg.display.set_caption("2D Ray Caster")
     clock = pg.time.Clock()
 
     # Create the buffer to draw to

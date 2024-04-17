@@ -15,8 +15,12 @@ python -m pip install -r requirements.txt
 ## Usage
 
 Once the required libraries are installed, you can execute the program
-with the following command:
+with the following command from the project root directory:
 
 ```bash
 python ./main.py
 ```
+
+## References 
+
+* The DDA line drawing algorithm for ray casting: https://lodev.org/cgtutor/raycasting.html
