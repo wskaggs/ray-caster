@@ -40,7 +40,7 @@ class RayHitInfo(object):
         self.map_y: int = 0  # The y coordinate of the hit cell
         self.hit_side: HitSide = HitSide.LEFT  # The side of the cell that was hit
 
-    def is_vertical_side_hit(self) -> bool:
+    def is_vertical_hit(self) -> bool:
         """
         Check if the side hit by the ray was a vertical side
 
@@ -48,7 +48,7 @@ class RayHitInfo(object):
         """
         return self.hit_side == HitSide.LEFT or self.hit_side == HitSide.RIGHT
 
-    def is_horizontal_side_hit(self) -> bool:
+    def is_horizontal_hit(self) -> bool:
         """
         Check if the side hit by the ray was a vertical side
 

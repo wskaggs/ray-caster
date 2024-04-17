@@ -1,6 +1,6 @@
 from numba.experimental import jitclass
 from numba import int64, double
-from .ray_hit_info import RayHitInfo, HitSide
+from . import RayHitInfo, HitSide
 import numpy as np
 
 # The compilation types for the Map class
@@ -72,10 +72,10 @@ class Map(object):
             else:
                 side_dist_y += delta_dist_y
                 info.map_y += step_y
-                info.hit_side = HitSide.TOP if step_x == -1 else HitSide.BOTTOM
+                info.hit_side = HitSide.BOTTOM if step_y == -1 else HitSide.TOP
 
         # Calculate the distance traveled by the ray and the x and y locations of the hit
-        info.distance = side_dist_y - delta_dist_y if info.is_horizontal_side_hit() else side_dist_x - delta_dist_x
+        info.distance = side_dist_y - delta_dist_y if info.is_horizontal_hit() else side_dist_x - delta_dist_x
         info.hit_x = start_x + info.distance * ray_dir_x
         info.hit_y = start_y + info.distance * ray_dir_y
 

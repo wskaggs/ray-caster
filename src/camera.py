@@ -1,6 +1,6 @@
 from numba.experimental import jitclass
 from numba import double
-from .map import Map
+from . import Map
 import numpy as np
 
 # The compilation types for the members of the Camera class
