@@ -37,7 +37,7 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
 
         # Render the sky first to ensure occlusion with other scene objects
         sky_x = int(np.interp(yaw_prime % (2 * np.pi), (0, 2 * np.pi), (0, sky_width - 1)))
-        buffer[i][:] = sky[sky_x][buffer_height - y_shear: 2 * buffer_height - y_shear]
+        buffer[i][:] = sky[sky_x][half_buffer_height - y_shear: 3 * half_buffer_height - y_shear]
 
         # Perform the ray cast
         info = camera.map.ray_cast(camera.x, camera.y, yaw_prime)
@@ -60,8 +60,16 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
 
         # Draw the wall within the column
         for j in range(wall_draw_start, wall_draw_end):
+            # Determine the color of the pixel to draw
             wall_texture_y = int(np.fmod(3 * (j - wall_start) / wall_draw_height, 1) * wall_height)
-            buffer[i][j] = camera.map.colors[info.map_x][info.map_y] * wall[wall_texture_x][wall_texture_y]
+            wall_color = camera.map.colors[info.map_x][info.map_y] * wall[wall_texture_x][wall_texture_y]
+
+            # Draw this pixel and its reflection over the floor, if applicable
+            buffer[i][j] = wall_color
+            reflected_j = 2 * wall_draw_end - j - 1
+
+            if reflected_j < buffer_height:
+                buffer[i][reflected_j] = wall_color
 
         # Draw the floor within the column
         for j in range(buffer_height - wall_draw_end):
@@ -74,7 +82,10 @@ def refresh(buffer: np.array, camera: Camera, sky: np.array, wall: np.array, flo
             floor_texture_x = int(np.fmod(3 * floor_x, 1) * floor_width)
             floor_texture_y = int(np.fmod(3 * floor_y, 1) * floor_height)
 
-            buffer[i][buffer_height - j - 1] = floor[floor_texture_x][floor_texture_y]
+            # Determine the color of the pixel to draw and draw it
+            reflective_color = buffer[i][buffer_height - j - 1]
+            floor_color = floor[floor_texture_x][floor_texture_y]
+            buffer[i][buffer_height - j - 1] = 0.7 * floor_color + 0.3 * floor_color * reflective_color
 
     return buffer
 
@@ -83,20 +94,23 @@ def main() -> None:
     """
     Entry point into the application
     """
-    # Create the window, create the clock, and create the buffer to draw to
+    # Create the window and clock
     window_width, window_height = 1600, 900
     window = pg.display.set_mode((window_width, window_height))
     clock = pg.time.Clock()
-    buffer = np.zeros((window_height // 4, window_width // 4, 3))
+
+    # Create the buffer to draw to
+    buffer = np.zeros((window_height // 2, window_width // 2, 3))
+    buffer_width, buffer_height, _ = buffer.shape
 
     # Lock the cursor on screen
     pg.mouse.set_visible(False)
     pg.event.set_grab(True)
 
     # Load textures
-    sky_texture = pg.transform.smoothscale(pg.image.load("images/sky.png"), (window_width, 2 * window_height))
-    wall_texture = pg.image.load("images/test.png")
-    floor_texture = pg.image.load("images/test.png")
+    sky_texture = pg.transform.smoothscale(pg.image.load("images/sky.png"), (buffer_width, 2 * buffer_height))
+    wall_texture = pg.image.load("images/wall.png")
+    floor_texture = pg.image.load("images/floor.jpg")
 
     # Convert the textures into their normalized pixel values
     sky = pg.surfarray.array3d(sky_texture) / 255
